@@ -5,5 +5,5 @@ langchain-community
 langchain-core
 langchain-text-splitters
 sentence-transformers
-chromadb
+faiss-cpu
 pypdf
