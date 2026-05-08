@@ -2,7 +2,7 @@ import streamlit as st
 import tempfile, os
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma
+from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
@@ -21,13 +21,17 @@ def get_embeddings():
         model_name="sentence-transformers/all-MiniLM-L6-v2"
     )
 
-def build_chain(pdf_path):
-    loader = PyPDFLoader(pdf_path)
+def build_chain(pdf_bytes):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as f:
+        f.write(pdf_bytes)
+        tmp_path = f.name
+
+    loader = PyPDFLoader(tmp_path)
     chunks = RecursiveCharacterTextSplitter(
         chunk_size=500, chunk_overlap=50
     ).split_documents(loader.load())
 
-    vectorstore = Chroma.from_documents(chunks, get_embeddings())
+    vectorstore = FAISS.from_documents(chunks, get_embeddings())
 
     prompt = PromptTemplate.from_template("""
 Use the context below to answer the question.
@@ -52,12 +56,8 @@ Answer:""")
 uploaded_file = st.file_uploader("Upload your PDF", type="pdf")
 
 if uploaded_file:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as f:
-        f.write(uploaded_file.read())
-        tmp_path = f.name
-
     with st.spinner("Reading PDF..."):
-        chain = build_chain(tmp_path)
+        chain = build_chain(uploaded_file.read())
 
     st.success("Ready! Ask any question 👇")
 
